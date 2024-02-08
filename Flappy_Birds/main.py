@@ -93,6 +93,8 @@ class FlappyBirdGame:
     def __init__(self):
         self.player_name = input("Please enter your full name: ")
         self.env = GameEnvironment(self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
+        self.start_time = None
+        self.end_time = None
         
         self.bird = Bird(self.SCREEN_HEIGHT)
         self.pipes = [Pipe(self.SCREEN_WIDTH, self.SCREEN_HEIGHT, random.randint(100, 300)) for _ in range(2)]
@@ -112,14 +114,16 @@ class FlappyBirdGame:
             if pipe.check_collision(self.bird):
                 self.game_over_sound.play()
                 self.game_active = False
+                self.end_time = datetime.now()  # Record the end time
                 self.save_score()
-                time.sleep(1)
+                time.sleep(2)
                 break
         
         # Check for floor and ceiling collisions
         if self.bird.rect.top <= 0 or self.bird.rect.bottom >= self.SCREEN_HEIGHT:
             self.game_over_sound.play()
             self.game_active = False
+            self.end_time = datetime.now()  # Record the end time
             self.save_score()
             time.sleep(1)
 
@@ -136,17 +140,19 @@ class FlappyBirdGame:
                             self.game_start = True
                             self.game_active = True
                             self.reset_game()
+                            self.start_time = datetime.now()  # Record the start time
                         elif self.game_active:
                             self.bird.jump()
                             self.flap_sound.play()
                         else:
                             self.reset_game()
+                            self.start_time = datetime.now()  # Record the start time
 
             self.env.draw_background()
             if self.game_active:
                 self.bird.move()
                 self.bird.draw(self.env.screen)
-                self.check_all_collisions()  # This replaces or supplements existing collision checks
+                self.check_all_collisions()  
                 self.handle_pipes()
                 self.env.show_score(self.score)
 
@@ -214,16 +220,36 @@ class FlappyBirdGame:
 
 
     def save_score(self):
-        with open('scores.csv', 'a', newline='') as csvfile:
-            fieldnames = ['name', 'score', 'timestamp']
+        filename = 'scores.csv'
+        fieldnames = ['name', 'score', 'start_time', 'end_time', 'duration']
+
+        # Check if file is empty
+        file_is_empty = False
+        try:
+            with open(filename, 'r') as csvfile:
+                file_is_empty = csvfile.read() == ''
+        except FileNotFoundError:
+            file_is_empty = True
+
+        with open(filename, 'a', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writerow({'name': self.player_name, 'score': self.score, 'timestamp': datetime.now()})
+
+            # Write headers if file is empty
+            if file_is_empty:
+                writer.writeheader()
+
+            if self.end_time is None:
+                self.end_time = datetime.now()
+
+            duration = self.end_time - self.start_time
+            writer.writerow({'name': self.player_name, 'score': self.score, 'start_time': self.start_time, 'end_time': self.end_time, 'duration': duration})
 
 
-if __name__ == "__main__":
+def run_the_game():
     game = FlappyBirdGame()
     game.run()
 
 
+run_the_game()
 
 
